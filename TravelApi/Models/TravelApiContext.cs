@@ -4,8 +4,8 @@ namespace TravelApi.Models
 {
     public class TravelApiContext : DbContext
     {
-        DbSet<Destination> Destinations { get; set; }
-        DbSet<Review> Reviews { get; set; }
+        public DbSet<Destination> Destinations { get; set; }
+        public DbSet<Review> Reviews { get; set; }
         public TravelApiContext(DbContextOptions<TravelApiContext> options) : base(options)
         {
         }
