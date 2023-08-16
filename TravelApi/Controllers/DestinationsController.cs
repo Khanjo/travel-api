@@ -1,6 +1,9 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TravelApi.Models;
+using System.Linq;
+using System;
+using System.Threading.Tasks;
 
 namespace TravelApi.Controllers
 {
@@ -16,9 +19,9 @@ namespace TravelApi.Controllers
         }
 
         [HttpGet]
-        public async Task<List<Destination>> Get(string name, string country, string city)
+        public async Task<List<Destination>> Get(string name, string country, string city, string mostReviews)
         {
-            IQueryable<Destination> query = _db.Destinations.AsQueryable();
+            IQueryable<Destination> query = _db.Destinations.Include(m => m.Reviews).AsQueryable();
 
             if (name != null)
             {
@@ -35,13 +38,20 @@ namespace TravelApi.Controllers
                 query = query.Where(entry => entry.City == city);
             }
 
+            if (mostReviews == null)
+            {
+                Destination destinationWithMostReviews = query.OrderByDescending(d => d.Reviews.Count()).FirstOrDefault();
+
+                return new List<Destination> { destinationWithMostReviews };
+            }
+
             return await query.ToListAsync();
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Destination>> GetDestination(int id)
         {
-            Destination destination = await _db.Destinations.FindAsync(id);
+            Destination destination = await _db.Destinations.Include(m => m.Reviews).FirstOrDefaultAsync(m => m.DestinationId == id);
 
             if (destination == null)
             {
@@ -50,6 +60,16 @@ namespace TravelApi.Controllers
 
             return destination;
         }
+
+        // [HttpGet("{random}")]
+        // public async Task<ActionResult<Destination>> GetRandom(int id)
+        // {
+        //     Random rnd = new Random();
+        //     List<Destination> destinations = await _db.Destinations.Include(m => m.Reviews).ToListAsync();
+        //     int random = rnd.Next(destinations.Count);
+        //     Destination rndDestination = destinations[random];
+        //     return rndDestination;
+        // }
 
         [HttpPost]
         public async Task<ActionResult<Destination>> Post(Destination destination)

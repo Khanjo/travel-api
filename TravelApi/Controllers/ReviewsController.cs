@@ -16,9 +16,9 @@ namespace TravelApi.Controllers
         }
 
         [HttpGet]
-        public async Task<List<Review>> Get(string title, string text, int rating)
+        public async Task<List<Review>> Get(string title, string text, int rating, string user)
         {
-            IQueryable<Review> query = _db.Reviews.AsQueryable();
+            IQueryable<Review> query = _db.Reviews.Include(m => m.Destination).AsQueryable();
 
             if (title != null)
             {
@@ -35,13 +35,20 @@ namespace TravelApi.Controllers
                 query = query.Where(entry => entry.Rating == rating);
             }
 
+            if (user != null)
+            {
+                query = query.Where(entry => entry.User == user);
+            }
+
             return await query.ToListAsync();
         }
 
         [HttpGet("{id}")]
         public async Task<ActionResult<Review>> GetReview(int id)
         {
-            Review review = await _db.Reviews.FindAsync(id);
+            Review review = await _db.Reviews.Include(m => m.Destination).FirstOrDefaultAsync(m => m.ReviewId == id);
+            //.AsNoTracking()
+            //FindAsync(id);
 
             if (review == null)
             {
@@ -62,28 +69,31 @@ namespace TravelApi.Controllers
             }, review);
         }
         [HttpPut("{id}")]
-        public async Task<IActionResult> Put(int id, Review review)
+        public async Task<IActionResult> Put(int id, Review review, string user)
         {
-            if (id != review.ReviewId)
+            if (id != review.ReviewId && user == null)
             {
                 return BadRequest();
             }
 
-            _db.Reviews.Update(review);
+            if (user == review.User)
+            {
+                _db.Reviews.Update(review);
 
-            try
-            {
-                await _db.SaveChangesAsync();
-            }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!ReviewExists(id))
+                try
                 {
-                    return NotFound();
+                    await _db.SaveChangesAsync();
                 }
-                else
+                catch (DbUpdateConcurrencyException)
                 {
-                    throw;
+                    if (!ReviewExists(id))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        throw;
+                    }
                 }
             }
             return NoContent();
@@ -95,17 +105,21 @@ namespace TravelApi.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> DeleteReview(int id)
+        public async Task<IActionResult> DeleteReview(int id, string user)
         {
             Review review = await _db.Reviews.FindAsync(id);
-            if (review == null)
+            if (review == null && user == null)
             {
                 return NotFound();
             }
-            _db.Reviews.Remove(review);
-            await _db.SaveChangesAsync();
-            return NoContent();
-        }
 
+            if (user == review.User)
+            {
+                _db.Reviews.Remove(review);
+                await _db.SaveChangesAsync();
+                return NoContent();
+            }
+            return NotFound();
+        }
     }
 }
